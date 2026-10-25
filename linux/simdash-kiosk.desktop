@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=SimDash Kiosk
+Comment=Full-screen SimHub dash
+Exec=/usr/local/bin/simdash-kiosk
+Type=Application
+DesktopNames=SimDashKiosk

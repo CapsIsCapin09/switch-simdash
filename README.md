@@ -7,6 +7,10 @@ It has two modes, picked from its start menu:
 - **Custom dash**: SimDash draws its own dashboard from live SimHub data (gear, speed, RPM lights, lap times, position, fuel, TC/ABS/bias, flags, tyre temps and pressures, water/oil temps).
 - **SimHub dash (Moonlight)**: hands over to [Moonlight-Switch](https://github.com/XITRIX/Moonlight-Switch), which streams a SimHub dashboard from your PC. You pick and change dashboards in SimHub exactly like with a tablet.
 
+## Linux option: real SimHub dashes in a kiosk browser
+
+If you'd rather dual-boot Linux on the Switch and show SimHub's own web dashes full screen, follow [linux/README.md](linux/README.md). It keeps Atmosphere and your emuMMC.
+
 ## Download
 
 Grab `switch-simdash.nro` from the latest [Actions build](../../actions/workflows/build.yml) (open the newest green run, download the **SimDash** artifact and unzip it) or from [Releases](../../releases).

@@ -1,0 +1,86 @@
+#!/bin/bash
+# SimDash kiosk session: full-screen browser showing a SimHub web dash.
+# Started by the display manager as the "SimDash Kiosk" X session.
+
+CONF=/etc/simdash-kiosk.conf
+DASH_URL="http://192.168.1.145:8888/"
+BROWSER="auto"
+SCALE="1"
+HIDE_CURSOR_AFTER="1"
+[ -r "$CONF" ] && . "$CONF"
+
+LOG="$HOME/.cache/simdash-kiosk.log"
+mkdir -p "$(dirname "$LOG")"
+exec >>"$LOG" 2>&1
+echo "=== $(date) starting, url=$DASH_URL"
+
+# No screen blanking, no screensaver, no power-off of the display.
+xset s off
+xset s noblank
+xset -dpms
+
+# Window manager so the browser gets real full screen and focus.
+if command -v openbox >/dev/null; then
+  openbox &
+fi
+
+if [ "$HIDE_CURSOR_AFTER" != "0" ] && command -v unclutter >/dev/null; then
+  unclutter -idle "$HIDE_CURSOR_AFTER" -root &
+fi
+
+LOADER="file:///usr/share/simdash-kiosk/loader.html?url=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$DASH_URL")"
+
+pick_browser() {
+  case "$BROWSER" in
+    chromium) for b in chromium chromium-browser; do command -v $b >/dev/null && { echo $b; return; }; done ;;
+    firefox) command -v firefox >/dev/null && { echo firefox; return; } ;;
+  esac
+  for b in chromium chromium-browser firefox; do
+    command -v $b >/dev/null && { echo $b; return; }
+  done
+}
+
+B=$(pick_browser)
+if [ -z "$B" ]; then
+  echo "no browser found"
+  xmessage -center "SimDash kiosk: no browser installed. Run: sudo apt install chromium" || sleep 30
+  exit 1
+fi
+echo "browser: $B"
+
+PROFILE="$HOME/.cache/simdash-kiosk-profile"
+
+# Restart the browser if it ever closes or crashes.
+while true; do
+  case "$B" in
+    chromium|chromium-browser)
+      # Clear the "restore pages?" bubble after an unclean shutdown.
+      sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]*"/"exit_type":"Normal"/' \
+        "$PROFILE/Default/Preferences" 2>/dev/null
+      "$B" --user-data-dir="$PROFILE" \
+        --kiosk --start-fullscreen --noerrdialogs --disable-infobars \
+        --disable-session-crashed-bubble --disable-features=Translate,TranslateUI \
+        --no-first-run --password-store=basic --check-for-update-interval=31536000 \
+        --overscroll-history-navigation=0 --disable-pinch \
+        --autoplay-policy=no-user-gesture-required \
+        --force-device-scale-factor="$SCALE" \
+        --ignore-gpu-blocklist --enable-gpu-rasterization \
+        "$LOADER"
+      ;;
+    firefox)
+      mkdir -p "$PROFILE-ff"
+      cat > "$PROFILE-ff/user.js" <<'PREFS'
+user_pref("browser.sessionstore.resume_from_crash", false);
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.aboutwelcome.enabled", false);
+user_pref("datareporting.policy.dataSubmissionEnabled", false);
+user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
+user_pref("security.fileuri.strict_origin_policy", false);
+user_pref("gfx.webrender.all", true);
+PREFS
+      firefox --kiosk --profile "$PROFILE-ff" "$LOADER"
+      ;;
+  esac
+  echo "=== $(date) browser exited ($?), restarting"
+  sleep 2
+done

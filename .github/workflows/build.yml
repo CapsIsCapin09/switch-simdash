@@ -17,8 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The image already ships these; only hit pkg.devkitpro.org (which
+      # sometimes refuses CI runners) when one is missing.
       - name: Install SDL2 portlibs
-        run: dkp-pacman -Sy --needed --noconfirm switch-sdl2 switch-sdl2_ttf
+        run: |
+          PKGS="switch-sdl2 switch-sdl2_ttf"
+          dkp-pacman -Q $PKGS || dkp-pacman -Sy --needed --noconfirm $PKGS
 
       - name: Build
         run: make -j"$(nproc)"
@@ -40,3 +44,35 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev
       - run: make -f Makefile.desktop
+
+  linux-kiosk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check scripts
+        run: |
+          bash -n linux/install-kiosk.sh linux/uninstall-kiosk.sh linux/simdash-kiosk
+          shellcheck -S error linux/install-kiosk.sh linux/uninstall-kiosk.sh linux/simdash-kiosk
+
+      - name: Package
+        run: |
+          mkdir -p dist/simdash-linux-kiosk
+          cp -a linux/. dist/simdash-linux-kiosk/
+          tar -C dist -czf simdash-linux-kiosk.tar.gz simdash-linux-kiosk
+          echo "VERSION=$(cat linux/VERSION)" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simdash-linux-kiosk
+          path: simdash-linux-kiosk.tar.gz
+
+      - name: Publish release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: linux-kiosk-v${{ env.VERSION }}
+          name: Linux kiosk v${{ env.VERSION }}
+          make_latest: true
+          body: Files for the L4T Ubuntu SimHub dash kiosk. See linux/README.md for the install guide.
+          files: simdash-linux-kiosk.tar.gz
