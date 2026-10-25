@@ -16,5 +16,8 @@ void net_stop(void);
 // Points the client at a new PC; the current connection is dropped.
 void net_set_target(const char *host, int port);
 
+// Why the last connection attempt failed, in plain words.
+void net_last_error(char *out, int size);
+
 // Copies the latest property values and connection state.
 NetState net_snapshot(PropValue *out);

@@ -3,7 +3,9 @@
 typedef struct {
     char host[128];          // PC running SimHub
     int port;                // SimHub Property Server port
-    char moonlight_path[256];  // optional override for the Moonlight .nro
+    int stream_port;         // SimDash Streamer port
+    int web_port;            // SimHub's web dash server port
+    char web_path[128];      // page to open on it, e.g. a specific dash
     int page;                // last custom dash page shown
 } Config;
 

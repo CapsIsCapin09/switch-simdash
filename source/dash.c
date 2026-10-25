@@ -91,11 +91,16 @@ static void draw_status_strip(const PropValue *v, const DashContext *ctx) {
 
     if (ctx->net != NET_CONNECTED) {
         panel(16, y, SCREEN_W - 32, h);
-        if (ctx->net == NET_FAILED)
-            snprintf(buf, sizeof(buf), "Can't reach SimHub at %s:%d, retrying", ctx->host, ctx->port);
-        else
+        if (ctx->net == NET_FAILED && ctx->error && ctx->error[0]) {
+            char line[200];
+            snprintf(line, sizeof(line), "Can't reach SimHub at %s:%d: %s", ctx->host, ctx->port, ctx->error);
+            draw_text(FONT_SMALL, line, C_ORANGE, SCREEN_W / 2, y + 17, ALIGN_CENTER);
+            snprintf(line, sizeof(line), "This Switch: %s   (Y to change the PC address)", ctx->switch_ip);
+            draw_text(FONT_SMALL, line, C_LABEL, SCREEN_W / 2, y + 40, ALIGN_CENTER);
+        } else {
             snprintf(buf, sizeof(buf), "Connecting to %s:%d", ctx->host, ctx->port);
-        draw_text(FONT_LABEL, buf, C_ORANGE, SCREEN_W / 2, y + h / 2, ALIGN_CENTER);
+            draw_text(FONT_LABEL, buf, C_ORANGE, SCREEN_W / 2, y + h / 2, ALIGN_CENTER);
+        }
         return;
     }
     if (!v[P_GAME_RUNNING].valid || v[P_GAME_RUNNING].num == 0) {
@@ -264,25 +269,31 @@ void dash_draw(int page, const PropValue *v, const DashContext *ctx) {
         page_race(v, ctx);
 }
 
-void menu_draw(int selected, const char *host, int port, const char *message) {
+void menu_draw(int selected, const char *host, int port, const char *switch_ip, const char *message) {
     char buf[200];
-    draw_text(FONT_BIG, "SimDash", C_TEXT, SCREEN_W / 2, 110, ALIGN_CENTER);
-    draw_text(FONT_LABEL, "SimHub digital dash for Switch", C_LABEL, SCREEN_W / 2, 185, ALIGN_CENTER);
+    draw_text(FONT_BIG, "SimDash", C_TEXT, SCREEN_W / 2, 80, ALIGN_CENTER);
+    draw_text(FONT_LABEL, "SimHub digital dash for Switch", C_LABEL, SCREEN_W / 2, 150, ALIGN_CENTER);
 
     snprintf(buf, sizeof(buf), "PC address: %s:%d", host, port);
     const char *labels[MENU_COUNT] = {
         "Custom dash",
-        "SimHub dash (Moonlight)",
+        "SimHub dash (web)",
+        "SimHub dash (stream)",
         buf,
         "Exit",
     };
     for (int i = 0; i < MENU_COUNT; i++) {
-        int y = 260 + i * 86;
+        int y = 195 + i * 80;
         bool sel = i == selected;
-        fill_rect(340, y, 600, 70, sel ? C_BLUE : C_PANEL);
-        if (!sel) outline_rect(340, y, 600, 70, C_LINE);
-        draw_text(FONT_LABEL, labels[i], C_TEXT, SCREEN_W / 2, y + 35, ALIGN_CENTER);
+        fill_rect(340, y, 600, 66, sel ? C_BLUE : C_PANEL);
+        if (!sel) outline_rect(340, y, 600, 66, C_LINE);
+        draw_text(FONT_LABEL, labels[i], C_TEXT, SCREEN_W / 2, y + 33, ALIGN_CENTER);
     }
-    if (message && message[0]) draw_text(FONT_LABEL, message, C_ORANGE, SCREEN_W / 2, 625, ALIGN_CENTER);
+    if (message && message[0]) {
+        draw_text(FONT_LABEL, message, C_ORANGE, SCREEN_W / 2, 615, ALIGN_CENTER);
+    } else {
+        snprintf(buf, sizeof(buf), "This Switch: %s", switch_ip);
+        draw_text(FONT_LABEL, buf, C_LABEL, SCREEN_W / 2, 615, ALIGN_CENTER);
+    }
     draw_text(FONT_SMALL, "Up/Down select   A open   + exit", C_LABEL, SCREEN_W / 2, 690, ALIGN_CENTER);
 }

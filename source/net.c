@@ -1,10 +1,8 @@
 #include "net.h"
 
-#include <arpa/inet.h>
+#include "sockutil.h"
+
 #include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -13,7 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define CONNECT_TIMEOUT_MS 3000
+#define CONNECT_TIMEOUT_MS 5000
 #define RETRY_DELAY_MS 2000
 
 static pthread_t thread;
@@ -24,6 +22,7 @@ static char target_host[128];
 static int target_port;
 static NetState state = NET_IDLE;
 static PropValue values[P_COUNT];
+static char last_error[128];
 
 static void set_state(NetState s) {
     pthread_mutex_lock(&lock);
@@ -35,43 +34,6 @@ static void set_state(NetState s) {
 static void sleep_ms(int ms) {
     struct timespec ts = {ms / 1000, (ms % 1000) * 1000000L};
     nanosleep(&ts, NULL);
-}
-
-static int open_connection(const char *host, int port) {
-    char port_str[16];
-    snprintf(port_str, sizeof(port_str), "%d", port);
-    struct addrinfo hints = {0}, *res = NULL;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    if (getaddrinfo(host, port_str, &hints, &res) != 0 || !res) return -1;
-
-    int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
-        freeaddrinfo(res);
-        return -1;
-    }
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
-    int rc = connect(fd, res->ai_addr, res->ai_addrlen);
-    freeaddrinfo(res);
-    if (rc < 0 && errno != EINPROGRESS) {
-        close(fd);
-        return -1;
-    }
-    if (rc < 0) {
-        struct pollfd pfd = {fd, POLLOUT, 0};
-        if (poll(&pfd, 1, CONNECT_TIMEOUT_MS) <= 0) {
-            close(fd);
-            return -1;
-        }
-        int err = 0;
-        socklen_t len = sizeof(err);
-        getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
-        if (err != 0) {
-            close(fd);
-            return -1;
-        }
-    }
-    return fd;
 }
 
 static bool send_all(int fd, const char *buf, int len) {
@@ -148,11 +110,16 @@ static void *thread_main(void *arg) {
         pthread_mutex_unlock(&lock);
 
         set_state(NET_CONNECTING);
-        int fd = open_connection(host, port);
+        char err[128] = "";
+        int fd = tcp_connect(host, port, CONNECT_TIMEOUT_MS, err, sizeof(err));
         if (fd >= 0 && subscribe_all(fd)) {
             set_state(NET_CONNECTED);
             read_loop(fd);
+            snprintf(err, sizeof(err), "connection to the PC was lost");
         }
+        pthread_mutex_lock(&lock);
+        snprintf(last_error, sizeof(last_error), "%s", err);
+        pthread_mutex_unlock(&lock);
         if (fd >= 0) close(fd);
         if (!running) break;
         if (retarget) continue;
@@ -181,6 +148,12 @@ void net_set_target(const char *host, int port) {
     snprintf(target_host, sizeof(target_host), "%s", host);
     target_port = port;
     retarget = true;
+    pthread_mutex_unlock(&lock);
+}
+
+void net_last_error(char *out, int size) {
+    pthread_mutex_lock(&lock);
+    snprintf(out, size, "%s", last_error);
     pthread_mutex_unlock(&lock);
 }
 
