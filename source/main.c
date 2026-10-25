@@ -83,6 +83,43 @@ static unsigned platform_buttons(void) {
 }
 
 // Asks for the PC address with the system keyboard. Returns true if changed.
+// Shows url in the system web applet. full_screen hides the browser footer
+// and pointer; without it the applet runs with BrowseNX's known-good setup.
+// Returns true if the applet stopped on an error dialog.
+static bool show_web(const char *url, bool full_screen, Result *rc_out) {
+    WebCommonConfig web;
+    WebCommonReply reply;
+    Result rc = webPageCreate(&web, url);
+    if (R_SUCCEEDED(rc)) {
+        webConfigSetWhitelist(&web, ".*");
+        webConfigSetJsExtension(&web, true);
+        webConfigSetPageCache(&web, true);
+        if (full_screen) {
+            webConfigSetFooter(&web, false);
+            webConfigSetFooterFixedKind(&web, WebFooterFixedKind_Hidden);
+            webConfigSetBootDisplayKind(&web, WebBootDisplayKind_Black);
+            webConfigSetPointer(&web, false);
+            webConfigSetTouchEnabledOnContents(&web, true);
+        }
+        rc = webConfigShow(&web, &reply);
+    }
+    *rc_out = rc;
+    if (R_FAILED(rc)) return true;
+    WebExitReason reason;
+    return R_SUCCEEDED(webReplyGetExitReason(&reply, &reason)) && reason == WebExitReason_ErrorDialog;
+}
+
+// The browser refuses to start while the system's "update required" flag
+// (the supernag) is set.
+static bool update_nag_active(void) {
+    bool nag = false;
+    if (R_SUCCEEDED(nsvmInitialize())) {
+        nsvmNeedsUpdateVulnerability(&nag);
+        nsvmExit();
+    }
+    return nag;
+}
+
 // Opens SimHub's own web dashboard page in the system web applet, full
 // screen with the browser's footer hidden. The applet only accepts
 // arbitrary URLs when SimDash runs in place of a game, not from the Album.
@@ -91,21 +128,22 @@ static const char *open_web_dash(void) {
     AppletType type = appletGetAppletType();
     if (type != AppletType_Application && type != AppletType_SystemApplication)
         return "Open SimDash by holding R while starting a game to use this";
+    if (update_nag_active())
+        return "The Switch's browser is blocked by the system update nag (see README)";
 
+    static char msg[160];
     char url[300];
     snprintf(url, sizeof(url), "http://%s:%d/%s", cfg.host, cfg.web_port, cfg.web_path);
-    WebCommonConfig web;
-    WebCommonReply reply;
-    if (R_FAILED(webPageCreate(&web, url))) return "Couldn't open the web view";
-    webConfigSetWhitelist(&web, "^http*");
-    webConfigSetFooter(&web, false);
-    webConfigSetFooterFixedKind(&web, WebFooterFixedKind_Hidden);
-    webConfigSetBootDisplayKind(&web, WebBootDisplayKind_Black);
-    webConfigSetPointer(&web, false);
-    webConfigSetTouchEnabledOnContents(&web, true);
-    webConfigSetScreenShot(&web, false);
-    if (R_FAILED(webConfigShow(&web, &reply))) return "The web view closed with an error";
-    return NULL;
+    Result rc;
+    if (!show_web(url, true, &rc)) return NULL;
+    // Full screen settings may be refused by some firmware; try the plain browser.
+    Result rc_full = rc;
+    if (!show_web(url, false, &rc)) {
+        snprintf(msg, sizeof(msg), "Full screen web view was refused (%08X); opened the normal browser", (unsigned)rc_full);
+        return msg;
+    }
+    snprintf(msg, sizeof(msg), "The Switch's browser refused to open (codes %08X / %08X)", (unsigned)rc_full, (unsigned)rc);
+    return msg;
 }
 
 static bool edit_host(void) {
