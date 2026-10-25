@@ -46,7 +46,11 @@ Settings are saved to `/config/simdash/config.ini`.
 
 ### On the PC
 
-1. In SimHub, open your dashboard in a window on the PC (Dash Studio, then open/play the dash). Make it 1280x720 or another 16:9 size for a perfect fit. It can sit behind other windows, but it must not be minimized.
+1. Open your dashboard in a window on the PC, either way works:
+   - In SimHub, go to **Dash Studio** and press the dash's **▶ play** button.
+   - Or open `http://localhost:8888` in a browser on the PC (SimHub's built-in dash server) and pick the dash.
+
+   Make the window roughly 16:9 (for example 1280x720) so it fills the Switch screen. It can sit behind other windows, but it must not be minimized.
 2. Run `SimDashStreamer.exe`. The first time, Windows asks about the firewall: allow it on **Private** networks. (It needs .NET Framework 4.8, which Windows 10 and 11 already have.)
 3. In the dropdown, pick the SimHub dash window. Windows with "SimHub" or "Dash" in the title are listed first. You can also pick a whole monitor, for example a spare screen showing the dash.
 4. Note the PC address shown at the bottom of the Streamer window.
