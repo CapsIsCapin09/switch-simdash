@@ -17,8 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The image already ships these; only hit pkg.devkitpro.org (which
+      # sometimes refuses CI runners) when one is missing.
       - name: Install portlibs
-        run: dkp-pacman -Sy --needed --noconfirm switch-sdl2 switch-sdl2_ttf switch-libjpeg-turbo
+        run: |
+          PKGS="switch-sdl2 switch-sdl2_ttf switch-libjpeg-turbo"
+          dkp-pacman -Q $PKGS || dkp-pacman -Sy --needed --noconfirm $PKGS
 
       - name: Build
         run: make -j"$(nproc)"
