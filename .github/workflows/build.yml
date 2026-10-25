@@ -17,8 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The image already ships these; only hit pkg.devkitpro.org (which
+      # sometimes refuses CI runners) when one is missing.
       - name: Install SDL2 portlibs
-        run: dkp-pacman -Sy --needed --noconfirm switch-sdl2 switch-sdl2_ttf
+        run: |
+          PKGS="switch-sdl2 switch-sdl2_ttf"
+          dkp-pacman -Q $PKGS || dkp-pacman -Sy --needed --noconfirm $PKGS
 
       - name: Build
         run: make -j"$(nproc)"
