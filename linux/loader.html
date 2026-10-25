@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SimDash</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #ccc;
+    font: 28px/1.4 sans-serif; display: flex; align-items: center; justify-content: center; text-align: center; }
+  small { color: #777; font-size: 18px; }
+</style>
+</head>
+<body>
+<div>
+  <div id="msg">Waiting for SimHub…</div>
+  <small id="url"></small>
+</div>
+<script>
+  // Keeps retrying until SimHub's web server answers, then opens the dash.
+  // Stops the browser showing an error page when the Switch boots before
+  // Wi-Fi is up or before SimHub is running on the PC.
+  var target = new URLSearchParams(location.search).get("url") || "http://192.168.1.145:8888/";
+  document.getElementById("url").textContent = target;
+  var tries = 0;
+  function attempt() {
+    tries++;
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 3000);
+    fetch(target, { mode: "no-cors", cache: "no-store", signal: ctl.signal })
+      .then(function () { location.replace(target); })
+      .catch(function () {
+        clearTimeout(timer);
+        document.getElementById("msg").textContent =
+          "Waiting for SimHub… (try " + tries + ")";
+        setTimeout(attempt, 2000);
+      });
+  }
+  attempt();
+</script>
+</body>
+</html>
