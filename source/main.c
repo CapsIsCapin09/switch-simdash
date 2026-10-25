@@ -83,6 +83,31 @@ static unsigned platform_buttons(void) {
 }
 
 // Asks for the PC address with the system keyboard. Returns true if changed.
+// Opens SimHub's own web dashboard page in the system web applet, full
+// screen with the browser's footer hidden. The applet only accepts
+// arbitrary URLs when SimDash runs in place of a game, not from the Album.
+// Returns an error message, or NULL once the user has closed the page.
+static const char *open_web_dash(void) {
+    AppletType type = appletGetAppletType();
+    if (type != AppletType_Application && type != AppletType_SystemApplication)
+        return "Open SimDash by holding R while starting a game to use this";
+
+    char url[300];
+    snprintf(url, sizeof(url), "http://%s:%d/%s", cfg.host, cfg.web_port, cfg.web_path);
+    WebCommonConfig web;
+    WebCommonReply reply;
+    if (R_FAILED(webPageCreate(&web, url))) return "Couldn't open the web view";
+    webConfigSetWhitelist(&web, "^http*");
+    webConfigSetFooter(&web, false);
+    webConfigSetFooterFixedKind(&web, WebFooterFixedKind_Hidden);
+    webConfigSetBootDisplayKind(&web, WebBootDisplayKind_Black);
+    webConfigSetPointer(&web, false);
+    webConfigSetTouchEnabledOnContents(&web, true);
+    webConfigSetScreenShot(&web, false);
+    if (R_FAILED(webConfigShow(&web, &reply))) return "The web view closed with an error";
+    return NULL;
+}
+
 static bool edit_host(void) {
     SwkbdConfig kbd;
     char out[128] = {0};
@@ -133,6 +158,7 @@ static bool load_font(const void **data, int *size) {
 
 static unsigned platform_buttons(void) { return 0; }
 static bool edit_host(void) { return false; }
+static const char *open_web_dash(void) { return "The web view is only available on the Switch"; }
 
 #endif
 
@@ -252,6 +278,7 @@ int main(int argc, char **argv) {
     if (getenv("SIMDASH_PAGE")) cfg.page = atoi(getenv("SIMDASH_PAGE"));
     int menu_sel = MENU_CUSTOM;
     bool show_stream_info = false;
+    const char *menu_message = NULL;
     bool running = true;
     Uint64 start = SDL_GetPerformanceCounter(), last = start;
     PropValue vals[P_COUNT];
@@ -290,10 +317,15 @@ int main(int argc, char **argv) {
         } else {
             if (b & BTN_UP) menu_sel = (menu_sel + MENU_COUNT - 1) % MENU_COUNT;
             if (b & BTN_DOWN) menu_sel = (menu_sel + 1) % MENU_COUNT;
+            if (b & (BTN_UP | BTN_DOWN)) menu_message = NULL;
             if (b & BTN_A) {
+                menu_message = NULL;
                 switch (menu_sel) {
                 case MENU_CUSTOM:
                     view = VIEW_CUSTOM;
+                    break;
+                case MENU_WEB:
+                    menu_message = open_web_dash();
                     break;
                 case MENU_STREAM:
                     stream_start(cfg.host, cfg.stream_port);
@@ -326,7 +358,7 @@ int main(int argc, char **argv) {
         else if (view == VIEW_STREAM)
             draw_stream(ren, &ctx, show_stream_info);
         else
-            menu_draw(menu_sel, cfg.host, cfg.port, switch_ip);
+            menu_draw(menu_sel, cfg.host, cfg.port, switch_ip, menu_message);
 
         if (shot && frames == 90) {
             SDL_Surface *s = SDL_CreateRGBSurfaceWithFormat(0, SCREEN_W, SCREEN_H, 32, SDL_PIXELFORMAT_ARGB8888);

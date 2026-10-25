@@ -5,7 +5,8 @@ A native SimHub digital dash for a modded Nintendo Switch (Atmosphere, sysMMC or
 It has two modes, picked from its start menu:
 
 - **Custom dash**: SimDash draws its own dashboard from live SimHub data (gear, speed, RPM lights, lap times, position, fuel, TC/ABS/bias, flags, tyre temps and pressures, water/oil temps).
-- **SimHub dash**: shows any real SimHub dashboard, exactly as designed. The small **SimDash Streamer** program on the PC captures the dash window and sends it to the Switch as a live picture. You pick and change dashboards in SimHub like with a tablet.
+- **SimHub dash (web)**: opens SimHub's own dashboard page (the one tablets use, port 8888) full screen inside SimDash, with the browser bars hidden. Nothing extra to install on the PC.
+- **SimHub dash (stream)**: the small **SimDash Streamer** program on the PC captures a SimHub dash window and sends it to the Switch as a live picture. Use this if the web view is too slow for a dash.
 
 ## Download
 
@@ -42,7 +43,18 @@ Controls in the dash:
 
 Settings are saved to `/config/simdash/config.ini`.
 
-## SimHub dash setup
+## SimHub dash (web) setup
+
+1. Launch SimDash **through a game**: hold **R** while starting any game to open the Homebrew Menu, then start SimDash. (From the Album the Switch only allows a limited browser, and SimDash will tell you so.)
+2. Make sure **PC address** is your PC's IP, then choose **SimHub dash (web)**.
+3. SimHub's dashboard list opens full screen. Tap the dash you want.
+4. Press **B** on the first page or **X** to close it and return to the menu.
+
+To open one dash straight away, set `web_path=` in `/config/simdash/config.ini` to the part of the dash's address after `:8888/` (copy it from a PC browser with the dash open).
+
+If Windows asks, allow SimHub through the firewall on private networks (port 8888). The Switch's browser is older than a phone's, so busy dashboards may run slower than on a tablet.
+
+## SimHub dash (stream) setup
 
 ### On the PC
 
@@ -60,7 +72,7 @@ The Streamer remembers your choice. Closing it to the tray keeps it running; dou
 ### On the Switch
 
 1. Launch SimDash and make sure **PC address** is set to the PC's IP (the same one the custom dash uses).
-2. Choose **SimHub dash**. The picture appears within a second or two.
+2. Choose **SimHub dash (stream)**. The picture appears within a second or two.
 3. Press **Y** to show the frame rate, **B** to go back to the menu.
 
 Changing the dash in SimHub changes what the Switch shows. If the picture is choppy, lower the frames per second or the picture quality in the Streamer.

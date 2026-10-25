@@ -22,6 +22,7 @@ void config_load(Config *cfg) {
     snprintf(cfg->host, sizeof(cfg->host), "192.168.1.100");
     cfg->port = 18082;
     cfg->stream_port = 18083;
+    cfg->web_port = 8888;
 
     FILE *f = fopen(CONFIG_PATH, "r");
     if (!f) return;
@@ -38,12 +39,17 @@ void config_load(Config *cfg) {
             cfg->port = atoi(val);
         else if (strcmp(key, "stream_port") == 0)
             cfg->stream_port = atoi(val);
+        else if (strcmp(key, "web_port") == 0)
+            cfg->web_port = atoi(val);
+        else if (strcmp(key, "web_path") == 0)
+            snprintf(cfg->web_path, sizeof(cfg->web_path), "%s", val[0] == '/' ? val + 1 : val);
         else if (strcmp(key, "page") == 0)
             cfg->page = atoi(val);
     }
     fclose(f);
     if (cfg->port <= 0 || cfg->port > 65535) cfg->port = 18082;
     if (cfg->stream_port <= 0 || cfg->stream_port > 65535) cfg->stream_port = 18083;
+    if (cfg->web_port <= 0 || cfg->web_port > 65535) cfg->web_port = 8888;
 }
 
 void config_save(const Config *cfg) {
@@ -57,6 +63,8 @@ void config_save(const Config *cfg) {
     fprintf(f, "host=%s\n", cfg->host);
     fprintf(f, "port=%d\n", cfg->port);
     fprintf(f, "stream_port=%d\n", cfg->stream_port);
+    fprintf(f, "web_port=%d\n", cfg->web_port);
+    fprintf(f, "web_path=%s\n", cfg->web_path);
     fprintf(f, "page=%d\n", cfg->page);
     fclose(f);
 }
