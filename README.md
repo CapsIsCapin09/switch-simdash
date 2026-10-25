@@ -9,10 +9,10 @@ It has two modes, picked from its start menu:
 
 ## Download
 
-Grab the files from the latest [Actions build](../../actions/workflows/build.yml) (open the newest green run and download the artifacts) or from [Releases](../../releases):
+Download the files from the latest [Release](../../releases/latest):
 
-- **SimDash**: unzip and copy `switch-simdash.nro` to `/switch/` on the SD card.
-- **SimDashStreamer**: unzip `SimDashStreamer.exe` anywhere on the PC (only needed for the SimHub dash mode).
+- `switch-simdash.nro`: copy it to `/switch/` on the SD card.
+- `SimDashStreamer.exe`: put it anywhere on the PC (only needed for the SimHub dash mode).
 
 ## Custom dash setup
 
