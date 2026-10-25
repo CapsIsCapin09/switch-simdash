@@ -1,0 +1,9 @@
+# Desktop build for trying the dash without a Switch: make -f Makefile.desktop
+CFLAGS += -O2 -Wall -Wextra -Isource $(shell pkg-config --cflags sdl2 SDL2_ttf)
+LDLIBS += $(shell pkg-config --libs sdl2 SDL2_ttf) -lm -lpthread
+
+simdash-desktop: $(wildcard source/*.c) $(wildcard source/*.h)
+	$(CC) $(CFLAGS) -o $@ $(wildcard source/*.c) $(LDLIBS)
+
+clean:
+	rm -f simdash-desktop

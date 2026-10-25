@@ -1,0 +1,7 @@
+build/
+*.nro
+*.nacp
+*.elf
+*.map
+simdash-desktop
+config.ini
