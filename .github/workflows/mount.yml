@@ -1,0 +1,45 @@
+name: Mount STLs
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["mount/**", ".github/workflows/mount.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenSCAD
+        run: sudo apt-get update && sudo apt-get install -y openscad
+
+      - name: Render STLs
+        working-directory: mount
+        run: |
+          mkdir -p out
+          for p in foot cradle; do
+            openscad -D "part=\"$p\"" -o "out/switch-r3-mount-$p.stl" switch_moza_r3_mount.scad
+          done
+          cp switch_moza_r3_mount.scad out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: switch-r3-mount
+          path: mount/out/*
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mount-v${{ github.run_number }}
+          name: Switch mount for Moza R3 (build ${{ github.run_number }})
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          body: |
+            3D-printable Switch V1 mount for the Moza R3, built from ${{ github.sha }}.
+            Print both STLs; see mount/README.md for hardware and settings.
+          files: mount/out/*
