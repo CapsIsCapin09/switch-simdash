@@ -19,6 +19,7 @@
 #include "dash.h"
 #include "net.h"
 #include "render.h"
+#include "sockutil.h"
 #include "stream.h"
 
 enum {
@@ -159,7 +160,7 @@ static void draw_stream(SDL_Renderer *ren, const DashContext *ctx, bool show_inf
         SDL_UpdateTexture(stream_tex, NULL, stream_pixels, info.width * 4);
     }
 
-    char buf[160];
+    char buf[320];
     if (info.state == NET_CONNECTED && stream_tex && info.seq > 0) {
         double scale = fmin((double)SCREEN_W / stream_tex_w, (double)SCREEN_H / stream_tex_h);
         int w = (int)(stream_tex_w * scale), h = (int)(stream_tex_h * scale);
@@ -176,11 +177,13 @@ static void draw_stream(SDL_Renderer *ren, const DashContext *ctx, bool show_inf
     if (info.state == NET_CONNECTED)
         snprintf(buf, sizeof(buf), "Connected. Waiting for the first picture...");
     else if (info.state == NET_FAILED)
-        snprintf(buf, sizeof(buf), "Can't reach SimDash Streamer at %s:%d, retrying", ctx->host, cfg.stream_port);
+        snprintf(buf, sizeof(buf), "Can't reach SimDash Streamer at %s:%d: %s", ctx->host, cfg.stream_port, info.error);
     else
         snprintf(buf, sizeof(buf), "Connecting to SimDash Streamer at %s:%d", ctx->host, cfg.stream_port);
     draw_text(FONT_VALUE, "SimHub dash", rgb(240, 242, 246), SCREEN_W / 2, 300, ALIGN_CENTER);
-    draw_text(FONT_LABEL, buf, rgb(255, 140, 20), SCREEN_W / 2, 380, ALIGN_CENTER);
+    draw_text(info.state == NET_FAILED ? FONT_SMALL : FONT_LABEL, buf, rgb(255, 140, 20), SCREEN_W / 2, 380, ALIGN_CENTER);
+    snprintf(buf, sizeof(buf), "This Switch: %s", ctx->switch_ip);
+    draw_text(FONT_SMALL, buf, rgb(140, 146, 160), SCREEN_W / 2, 430, ALIGN_CENTER);
     draw_text(FONT_SMALL, "Start SimDash Streamer on the PC and pick your SimHub dash window.   B back", rgb(140, 146, 160),
               SCREEN_W / 2, 690, ALIGN_CENTER);
 }
@@ -253,6 +256,7 @@ int main(int argc, char **argv) {
     Uint64 start = SDL_GetPerformanceCounter(), last = start;
     PropValue vals[P_COUNT];
     int frames = 0;
+    char net_error[128] = "", switch_ip[48] = "";
 
     while (running) {
         Uint64 now = SDL_GetPerformanceCounter();
@@ -309,6 +313,11 @@ int main(int argc, char **argv) {
         }
 
         ctx.net = net_snapshot(vals);
+        net_last_error(net_error, sizeof(net_error));
+        if (frames % 60 == 0) local_ip(switch_ip, sizeof(switch_ip));
+        frames++;
+        ctx.error = net_error;
+        ctx.switch_ip = switch_ip;
         render_begin_frame();
         SDL_SetRenderDrawColor(ren, 8, 9, 12, 255);
         SDL_RenderClear(ren);
@@ -317,9 +326,9 @@ int main(int argc, char **argv) {
         else if (view == VIEW_STREAM)
             draw_stream(ren, &ctx, show_stream_info);
         else
-            menu_draw(menu_sel, cfg.host, cfg.port);
+            menu_draw(menu_sel, cfg.host, cfg.port, switch_ip);
 
-        if (shot && ++frames == 90) {
+        if (shot && frames == 90) {
             SDL_Surface *s = SDL_CreateRGBSurfaceWithFormat(0, SCREEN_W, SCREEN_H, 32, SDL_PIXELFORMAT_ARGB8888);
             SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, s->pixels, s->pitch);
             SDL_SaveBMP(s, shot);

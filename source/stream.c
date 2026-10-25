@@ -1,8 +1,8 @@
 #include "stream.h"
 
+#include "sockutil.h"
+
 #include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
 #include <poll.h>
 #include <pthread.h>
 #include <setjmp.h>
@@ -22,7 +22,7 @@
 #define MAX_JPEG (2 * 1024 * 1024)
 #define MAX_W 1920
 #define MAX_H 1080
-#define CONNECT_TIMEOUT_MS 3000
+#define CONNECT_TIMEOUT_MS 5000
 #define RETRY_DELAY_MS 1500
 #define STALL_TIMEOUT_MS 5000
 
@@ -37,6 +37,7 @@ static uint8_t *frame;  // newest decoded frame, guarded by lock
 static int frame_w, frame_h;
 static unsigned frame_seq;
 static float fps;
+static char last_error[128];
 
 static void set_state(NetState s) {
     pthread_mutex_lock(&lock);
@@ -51,33 +52,12 @@ static double now_s(void) {
 }
 
 static int open_connection(void) {
-    char port_str[16];
-    snprintf(port_str, sizeof(port_str), "%d", port);
-    struct addrinfo hints = {0}, *res = NULL;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    if (getaddrinfo(host, port_str, &hints, &res) != 0 || !res) return -1;
-    int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
-        freeaddrinfo(res);
-        return -1;
-    }
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
-    int rc = connect(fd, res->ai_addr, res->ai_addrlen);
-    freeaddrinfo(res);
-    if (rc < 0 && errno != EINPROGRESS) {
-        close(fd);
-        return -1;
-    }
-    if (rc < 0) {
-        struct pollfd pfd = {fd, POLLOUT, 0};
-        int err = 0;
-        socklen_t len = sizeof(err);
-        if (poll(&pfd, 1, CONNECT_TIMEOUT_MS) <= 0 || getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err) {
-            close(fd);
-            return -1;
-        }
-    }
+    char err[128] = "";
+    int fd = tcp_connect(host, port, CONNECT_TIMEOUT_MS, err, sizeof(err));
+    pthread_mutex_lock(&lock);
+    snprintf(last_error, sizeof(last_error), "%s", err);
+    pthread_mutex_unlock(&lock);
+    if (fd < 0) return -1;
     int big = 1024 * 1024;
     setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &big, sizeof(big));
     return fd;
@@ -236,6 +216,7 @@ bool stream_get_frame(unsigned last_seq, void *dst, int dst_size, StreamInfo *in
     info->width = frame_w;
     info->height = frame_h;
     info->fps = fps;
+    snprintf(info->error, sizeof(info->error), "%s", last_error);
     if (frame && frame_seq != last_seq && frame_w * frame_h * 4 <= dst_size) {
         memcpy(dst, frame, (size_t)frame_w * frame_h * 4);
         copied = true;

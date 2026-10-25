@@ -13,6 +13,7 @@ typedef struct {
     unsigned seq;         // increments with every decoded frame
     int width, height;
     float fps;            // frames decoded per second, recent average
+    char error[128];      // why the last connection attempt failed
 } StreamInfo;
 
 // Copies the newest frame (RGBA, width*height*4 bytes) into dst if it is
