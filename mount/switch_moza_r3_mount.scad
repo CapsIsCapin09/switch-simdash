@@ -50,7 +50,7 @@ slots      = 5;     // vent slots in the back (pointed tops print without suppor
 slot_rib   = 6;     // rib width between slots
 
 /* [Flush version] */
-flush_tilt    = 15;  // fixed lean back in degrees
+flush_tilt    = 0;   // lean back in degrees (0 = straight up; the R3 already sits tilted)
 cable_clear   = 12;  // room under the Switch for a right-angle USB-C plug; 0 if you never charge in it
 flush_plate_w = 30;  // plate depth front to back
 

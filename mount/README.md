@@ -6,7 +6,7 @@ mounts go. There are two versions.
 
 ## Flush (recommended)
 
-One piece. The Switch sits right on the base, leaning back 15 degrees, and you
+One piece. The Switch stands straight up off the base (the R3 is already tilted), and you
 read it through the top half of the wheel like a real dash.
 
 ![Flush](images/flush_assembly.png)
@@ -47,7 +47,7 @@ These numbers are from research, not from a real R3. Measure with calipers and
 change them at the top of `switch_moza_r3_mount.scad`:
 
 - `r3_hole_spacing` (90 mm): centre-to-centre of the two M3 holes on top of the R3.
-- `flush_tilt` (15 degrees): how far the flush version leans back.
+- `flush_tilt` (0 degrees): lean the flush version back if you want it angled more.
 - `hinge_h` (30 mm): how high the hinge sits above the base. Raise it if the Switch is hidden behind the wheel.
 - `sw_w`, `sw_h`, `sw_t` (173 x 101.9 x 13.9 mm): Switch V1 size. `fit` adds clearance.
 
