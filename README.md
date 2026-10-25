@@ -21,7 +21,7 @@ Grab the files from the latest [Actions build](../../actions/workflows/build.yml
 1. Download `PropertyServer.dll` from the [SimHub Property Server releases](https://github.com/pre-martin/SimHubPropertyServer/releases) (needs SimHub 9.6 or newer).
 2. Close SimHub, copy the DLL into the SimHub install folder (usually `C:\Program Files (x86)\SimHub`), then start SimHub.
 3. When SimHub asks about the new plugin, enable it (or turn it on under **Settings > Plugins**).
-4. Open the Property Server settings (under Additional Plugins, or the left menu) and change **TCP Listen Address** from `Loopback` to `Any`, then restart SimHub. With `Loopback` only the PC itself can connect, and SimDash shows "Can't reach SimHub".
+4. Open the Property Server settings (under Additional Plugins, or the left menu) and change **TCP Listen Address** from `Loopback` to `Any`, then fully restart SimHub (quit it from the tray icon too, not just the window). With `Loopback` only the PC itself can connect, and SimDash shows "Can't reach SimHub". To check, run `netstat -an | findstr 18082` in Command Prompt: it should show `0.0.0.0:18082`, not `127.0.0.1:18082`.
 5. Allow SimHub through Windows Firewall on private networks if Windows asks. The plugin listens on TCP port **18082**. Your Wi‑Fi/Ethernet network should be set to **Private** in Windows.
 6. Find the PC's local IP: open a command prompt, run `ipconfig`, and note the IPv4 address (for example `192.168.1.50`).
 
