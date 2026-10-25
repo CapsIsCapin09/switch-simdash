@@ -1,6 +1,13 @@
 // Nintendo Switch (V1, tablet only) mount for the Moza R3 wheel base.
 //
-// Two printed parts joined by two M4 bolts, so the tilt is adjustable:
+// Two versions:
+//
+// Flush (one piece, part = "flush"): the cradle sits straight on a plate that
+// screws to the R3, leaning back at a fixed angle. Print it standing up, plate
+// on the bed. Simplest and sturdiest if the wheel hub doesn't hide the screen.
+//
+// Raised (part = "foot" + "cradle"): two printed parts joined by two M4 bolts,
+// so the height clears the wheel hub and the tilt is adjustable:
 //   foot   - bolts to the two M3 holes on top of the R3 (where Moza-style
 //            dash / phone mounts go) and carries two hinge clevises.
 //   cradle - holds the Switch. The top edge is left open so you slide the
@@ -9,7 +16,8 @@
 //            has a gap for a USB-C cable.
 //
 // Render one part at a time:  openscad -D 'part="foot"' -o foot.stl this.scad
-// part = "foot" | "cradle" | "assembly" (preview only, not for printing)
+// part = "flush" | "foot" | "cradle" | "assembly" | "flush_assembly"
+//        (the two *assembly parts are previews with a Switch, not for printing)
 //
 // Measurements marked CHECK are best guesses; measure yours with calipers.
 
@@ -37,7 +45,14 @@ lip        = 4;     // how far the lips reach over the front bezel
 lip_t      = 2;     // lip thickness
 side_len   = 65;    // how far up the sides the side walls go (top stays open)
 usb_gap    = 34;    // gap in the bottom ledge for the USB-C plug
-window_m   = 14;    // frame width left around the back window
+window_m   = 14;    // frame width left around the back vent slots
+slots      = 5;     // vent slots in the back (pointed tops print without support)
+slot_rib   = 6;     // rib width between slots
+
+/* [Flush version] */
+flush_tilt    = 15;  // fixed lean back in degrees
+cable_clear   = 12;  // room under the Switch for a right-angle USB-C plug; 0 if you never charge in it
+flush_plate_w = 30;  // plate depth front to back
 
 /* [Hinge] */
 hinge_x     = 27;   // hinge centre distance from the middle (each side)
@@ -62,7 +77,16 @@ cw = W + 2 * wall;          // cradle outer width
 wall_h = back_t + T + lip_t; // wall height from the back face
 
 // ---------- cradle (modelled lying on its back, screen facing +z) ----------
-module cradle() {
+// vent slots: rectangles with 45 degree pointed tops
+module back_slots() {
+    sw = (W - 2 * window_m - (slots - 1) * slot_rib) / slots;
+    sh = H - 2 * window_m;
+    for (i = [0 : slots - 1]) translate([-W / 2 + window_m + i * (sw + slot_rib), window_m, -1])
+        linear_extrude(back_t + 2)
+            polygon([[0, 0], [sw, 0], [sw, sh - sw / 2], [sw / 2, sh], [0, sh - sw / 2]]);
+}
+
+module cradle(tongues = true) {
     difference() {
         union() {
             // back plate
@@ -76,20 +100,19 @@ module cradle() {
             translate([-cw / 2, -wall, 0]) cube([cw, wall, wall_h]);
             translate([-cw / 2, -wall, wall_h - lip_t]) cube([cw, lip + wall, lip_t]);
             // hinge tongues
-            for (s = [-1, 1]) translate([s * hinge_x, -wall - tongue_len, tongue_t / 2])
+            if (tongues) for (s = [-1, 1]) translate([s * hinge_x, -wall - tongue_len, tongue_t / 2])
                 hull() {
                     rotate([0, 90, 0]) cylinder(d = tongue_t, h = tongue_w, center = true);
                     translate([-tongue_w / 2, tongue_len - eps, -tongue_t / 2]) cube([tongue_w, eps, tongue_t]);
                 }
             // tie the tongues into the ledge
-            translate([-hinge_x - tongue_w / 2, -wall - eps, 0]) cube([2 * hinge_x + tongue_w, wall, tongue_t]);
+            if (tongues) translate([-hinge_x - tongue_w / 2, -wall - eps, 0]) cube([2 * hinge_x + tongue_w, wall, tongue_t]);
         }
         // USB-C gap in the bottom ledge and lip
         translate([-usb_gap / 2, -wall - 1, back_t]) cube([usb_gap, wall + lip + 2, wall_h]);
-        // back window (rear vent, less plastic); stops short of the ledge
-        translate([-W / 2 + window_m, window_m, -1]) cube([W - 2 * window_m, H - 2 * window_m, back_t + 2]);
+        back_slots();
         // hinge bolt holes
-        for (s = [-1, 1]) translate([s * hinge_x, -wall - tongue_len, tongue_t / 2])
+        if (tongues) for (s = [-1, 1]) translate([s * hinge_x, -wall - tongue_len, tongue_t / 2])
             rotate([0, 90, 0]) cylinder(d = bolt_d, h = tongue_w + 2, center = true);
     }
 }
@@ -137,6 +160,51 @@ module assembly() {
         }
 }
 
-if (part == "foot") foot();
+// ---------- flush one-piece version (modelled as printed, plate on the bed) ----------
+flush_a = 90 - flush_tilt;
+// height of the Switch's bottom edge above the plate
+flush_lift = max(wall * sin(flush_a) + 1, cable_clear);
+flush_y = -wall_h * sin(flush_a) / 2 + 3;  // plate centre, slightly behind the cradle's middle
+
+module flush_cradle() {
+    translate([0, 0, plate_t + flush_lift]) rotate([flush_a, 0, 0]) cradle(false);
+}
+
+module flush_ledge() {
+    translate([0, 0, plate_t + flush_lift]) rotate([flush_a, 0, 0])
+        translate([-cw / 2, -wall, 0]) cube([cw, wall, wall_h]);
+}
+
+module flush() {
+    difference() {
+        union() {
+            translate([-plate_l / 2, flush_y - flush_plate_w / 2, 0]) cube([plate_l, flush_plate_w, plate_t]);
+            flush_cradle();
+            // solid plinth from the plate up to the bottom ledge
+            hull() {
+                flush_ledge();
+                linear_extrude(plate_t) projection() flush_ledge();
+            }
+        }
+        // R3 screw holes, counterbored from the top
+        for (s = [-1, 1]) translate([s * r3_hole_spacing / 2, flush_y, 0]) {
+            translate([0, 0, -1]) cylinder(d = r3_screw_d, h = plate_t + 2);
+            translate([0, 0, plate_t - r3_head_h]) cylinder(d = r3_head_d, h = 200);
+        }
+        // USB-C cable channel under the Switch, open front to back
+        if (cable_clear > 0)
+            translate([-usb_gap / 2, -60, plate_t]) cube([usb_gap, 120, flush_lift + back_t * cos(flush_a) + eps]);
+    }
+}
+
+module flush_assembly() {
+    color("dimgray") flush();
+    translate([0, 0, plate_t + flush_lift]) rotate([flush_a, 0, 0])
+        color("black") translate([-sw_w / 2 + 0.3, 0.3, back_t]) cube([sw_w, sw_h, sw_t]);
+}
+
+if (part == "flush") flush();
+else if (part == "flush_assembly") flush_assembly();
+else if (part == "foot") foot();
 else if (part == "cradle") cradle();
 else assembly();

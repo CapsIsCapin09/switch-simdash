@@ -22,7 +22,7 @@ jobs:
         working-directory: mount
         run: |
           mkdir -p out
-          for p in foot cradle; do
+          for p in flush foot cradle; do
             openscad -D "part=\"$p\"" -o "out/switch-r3-mount-$p.stl" switch_moza_r3_mount.scad
           done
           cp switch_moza_r3_mount.scad out/
