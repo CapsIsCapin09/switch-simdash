@@ -13,5 +13,5 @@ typedef struct {
 
 void dash_draw(int page, const PropValue *v, const DashContext *ctx);
 
-typedef enum { MENU_CUSTOM, MENU_MOONLIGHT, MENU_SET_PC, MENU_EXIT, MENU_COUNT } MenuItem;
-void menu_draw(int selected, const char *host, int port, const char *message);
+typedef enum { MENU_CUSTOM, MENU_STREAM, MENU_SET_PC, MENU_EXIT, MENU_COUNT } MenuItem;
+void menu_draw(int selected, const char *host, int port);

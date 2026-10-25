@@ -12,7 +12,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 
 APP_TITLE   := SimDash
 APP_AUTHOR  := CapsIsCapin09
-APP_VERSION := 0.1.0
+APP_VERSION := 0.2.0
 
 TARGET   := $(notdir $(CURDIR))
 BUILD    := build
@@ -31,7 +31,7 @@ CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions
 ASFLAGS  := -g $(ARCH)
 LDFLAGS   = -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS     := $(shell $(PKGCONF) --libs SDL2_ttf sdl2) -lm -lnx
+LIBS     := $(shell $(PKGCONF) --libs SDL2_ttf sdl2) -ljpeg -lm -lnx
 LIBDIRS  := $(PORTLIBS) $(LIBNX)
 
 #---------------------------------------------------------------------------------

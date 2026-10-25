@@ -264,7 +264,7 @@ void dash_draw(int page, const PropValue *v, const DashContext *ctx) {
         page_race(v, ctx);
 }
 
-void menu_draw(int selected, const char *host, int port, const char *message) {
+void menu_draw(int selected, const char *host, int port) {
     char buf[200];
     draw_text(FONT_BIG, "SimDash", C_TEXT, SCREEN_W / 2, 110, ALIGN_CENTER);
     draw_text(FONT_LABEL, "SimHub digital dash for Switch", C_LABEL, SCREEN_W / 2, 185, ALIGN_CENTER);
@@ -272,7 +272,7 @@ void menu_draw(int selected, const char *host, int port, const char *message) {
     snprintf(buf, sizeof(buf), "PC address: %s:%d", host, port);
     const char *labels[MENU_COUNT] = {
         "Custom dash",
-        "SimHub dash (Moonlight)",
+        "SimHub dash",
         buf,
         "Exit",
     };
@@ -283,6 +283,5 @@ void menu_draw(int selected, const char *host, int port, const char *message) {
         if (!sel) outline_rect(340, y, 600, 70, C_LINE);
         draw_text(FONT_LABEL, labels[i], C_TEXT, SCREEN_W / 2, y + 35, ALIGN_CENTER);
     }
-    if (message && message[0]) draw_text(FONT_LABEL, message, C_ORANGE, SCREEN_W / 2, 625, ALIGN_CENTER);
     draw_text(FONT_SMALL, "Up/Down select   A open   + exit", C_LABEL, SCREEN_W / 2, 690, ALIGN_CENTER);
 }

@@ -21,6 +21,7 @@ void config_load(Config *cfg) {
     memset(cfg, 0, sizeof(*cfg));
     snprintf(cfg->host, sizeof(cfg->host), "192.168.1.100");
     cfg->port = 18082;
+    cfg->stream_port = 18083;
 
     FILE *f = fopen(CONFIG_PATH, "r");
     if (!f) return;
@@ -35,13 +36,14 @@ void config_load(Config *cfg) {
             snprintf(cfg->host, sizeof(cfg->host), "%s", val);
         else if (strcmp(key, "port") == 0)
             cfg->port = atoi(val);
-        else if (strcmp(key, "moonlight_path") == 0)
-            snprintf(cfg->moonlight_path, sizeof(cfg->moonlight_path), "%s", val);
+        else if (strcmp(key, "stream_port") == 0)
+            cfg->stream_port = atoi(val);
         else if (strcmp(key, "page") == 0)
             cfg->page = atoi(val);
     }
     fclose(f);
     if (cfg->port <= 0 || cfg->port > 65535) cfg->port = 18082;
+    if (cfg->stream_port <= 0 || cfg->stream_port > 65535) cfg->stream_port = 18083;
 }
 
 void config_save(const Config *cfg) {
@@ -54,7 +56,7 @@ void config_save(const Config *cfg) {
     fprintf(f, "# SimDash settings\n");
     fprintf(f, "host=%s\n", cfg->host);
     fprintf(f, "port=%d\n", cfg->port);
-    fprintf(f, "moonlight_path=%s\n", cfg->moonlight_path);
+    fprintf(f, "stream_port=%d\n", cfg->stream_port);
     fprintf(f, "page=%d\n", cfg->page);
     fclose(f);
 }

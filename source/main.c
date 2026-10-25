@@ -1,12 +1,15 @@
 // SimDash: a native SimHub dashboard for Nintendo Switch homebrew.
+// Two views: a custom dash drawn from SimHub Property Server data, and a
+// live picture of a real SimHub dashboard sent by SimDash Streamer on the PC.
 // Builds for the Switch with devkitA64/libnx, and for a desktop with SDL2
 // so the dash can be tried without a console.
 
 #include <SDL.h>
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -16,6 +19,7 @@
 #include "dash.h"
 #include "net.h"
 #include "render.h"
+#include "stream.h"
 
 enum {
     BTN_UP = 1 << 0,
@@ -103,33 +107,6 @@ static bool edit_host(void) {
     return true;
 }
 
-static const char *find_moonlight(void) {
-    static const char *candidates[] = {
-        "sdmc:/switch/Moonlight-Switch.nro",
-        "sdmc:/switch/Moonlight-Switch/Moonlight-Switch.nro",
-        "sdmc:/switch/moonlight/Moonlight-Switch.nro",
-        "sdmc:/switch/Moonlight.nro",
-        "sdmc:/switch/moonlight.nro",
-    };
-    struct stat st;
-    if (cfg.moonlight_path[0] && stat(cfg.moonlight_path, &st) == 0) return cfg.moonlight_path;
-    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++)
-        if (stat(candidates[i], &st) == 0) return candidates[i];
-    return NULL;
-}
-
-// Hands over to Moonlight-Switch when this app exits. Returns an error
-// message, or NULL if the hand-over is set up.
-static const char *launch_moonlight(void) {
-    if (!envHasNextLoad()) return "Start SimDash from the Homebrew Menu to use this";
-    const char *path = find_moonlight();
-    if (!path) return "Moonlight-Switch.nro not found in /switch/";
-    static char argv[300];
-    snprintf(argv, sizeof(argv), "\"%s\"", path);
-    if (R_FAILED(envSetNextLoad(path, argv))) return "Couldn't start Moonlight";
-    return NULL;
-}
-
 #else  // desktop build
 
 static void *font_file;
@@ -155,9 +132,58 @@ static bool load_font(const void **data, int *size) {
 
 static unsigned platform_buttons(void) { return 0; }
 static bool edit_host(void) { return false; }
-static const char *launch_moonlight(void) { return "Moonlight is only available on the Switch"; }
 
 #endif
+
+typedef enum { VIEW_MENU, VIEW_CUSTOM, VIEW_STREAM } View;
+
+static SDL_Texture *stream_tex;
+static int stream_tex_w, stream_tex_h;
+static uint8_t *stream_pixels;
+static unsigned stream_seq;
+
+// Shows the newest frame from SimDash Streamer, scaled to fit the screen.
+static void draw_stream(SDL_Renderer *ren, const DashContext *ctx, bool show_info) {
+    const int buf_size = 1920 * 1080 * 4;
+    if (!stream_pixels) stream_pixels = malloc(buf_size);
+    StreamInfo info;
+    if (stream_pixels && stream_get_frame(stream_seq, stream_pixels, buf_size, &info)) {
+        stream_seq = info.seq;
+        if (!stream_tex || stream_tex_w != info.width || stream_tex_h != info.height) {
+            if (stream_tex) SDL_DestroyTexture(stream_tex);
+            stream_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, info.width, info.height);
+            SDL_SetTextureScaleMode(stream_tex, SDL_ScaleModeLinear);
+            stream_tex_w = info.width;
+            stream_tex_h = info.height;
+        }
+        SDL_UpdateTexture(stream_tex, NULL, stream_pixels, info.width * 4);
+    }
+
+    char buf[160];
+    if (info.state == NET_CONNECTED && stream_tex && info.seq > 0) {
+        double scale = fmin((double)SCREEN_W / stream_tex_w, (double)SCREEN_H / stream_tex_h);
+        int w = (int)(stream_tex_w * scale), h = (int)(stream_tex_h * scale);
+        SDL_Rect dst = {(SCREEN_W - w) / 2, (SCREEN_H - h) / 2, w, h};
+        SDL_RenderCopy(ren, stream_tex, NULL, &dst);
+        if (show_info) {
+            snprintf(buf, sizeof(buf), "%dx%d  %.0f fps", stream_tex_w, stream_tex_h, info.fps);
+            fill_rect(10, 10, 260, 40, rgb(0, 0, 0));
+            draw_text(FONT_SMALL, buf, rgb(240, 242, 246), 22, 30, ALIGN_LEFT);
+        }
+        return;
+    }
+
+    if (info.state == NET_CONNECTED)
+        snprintf(buf, sizeof(buf), "Connected. Waiting for the first picture...");
+    else if (info.state == NET_FAILED)
+        snprintf(buf, sizeof(buf), "Can't reach SimDash Streamer at %s:%d, retrying", ctx->host, cfg.stream_port);
+    else
+        snprintf(buf, sizeof(buf), "Connecting to SimDash Streamer at %s:%d", ctx->host, cfg.stream_port);
+    draw_text(FONT_VALUE, "SimHub dash", rgb(240, 242, 246), SCREEN_W / 2, 300, ALIGN_CENTER);
+    draw_text(FONT_LABEL, buf, rgb(255, 140, 20), SCREEN_W / 2, 380, ALIGN_CENTER);
+    draw_text(FONT_SMALL, "Start SimDash Streamer on the PC and pick your SimHub dash window.   B back", rgb(140, 146, 160),
+              SCREEN_W / 2, 690, ALIGN_CENTER);
+}
 
 static unsigned read_input(int *touch_x) {
     unsigned b = platform_buttons();
@@ -214,10 +240,15 @@ int main(int argc, char **argv) {
     net_start(cfg.host, cfg.port);
 
     const char *shot = getenv("SIMDASH_SCREENSHOT");  // desktop testing: save one frame and quit
-    bool in_dash = getenv("SIMDASH_DASH") != NULL;
+    View view = VIEW_MENU;
+    if (getenv("SIMDASH_DASH")) view = VIEW_CUSTOM;
+    if (getenv("SIMDASH_STREAM")) {
+        view = VIEW_STREAM;
+        stream_start(cfg.host, cfg.stream_port);
+    }
     if (getenv("SIMDASH_PAGE")) cfg.page = atoi(getenv("SIMDASH_PAGE"));
     int menu_sel = MENU_CUSTOM;
-    const char *message = NULL;
+    bool show_stream_info = false;
     bool running = true;
     Uint64 start = SDL_GetPerformanceCounter(), last = start;
     PropValue vals[P_COUNT];
@@ -238,26 +269,31 @@ int main(int argc, char **argv) {
         unsigned b = read_input(&touch_x);
         if (b & (BTN_QUIT | BTN_PLUS)) running = false;
 
-        if (in_dash) {
-            if (b & BTN_B) in_dash = false;
+        if (view == VIEW_CUSTOM) {
+            if (b & BTN_B) view = VIEW_MENU;
             if (b & BTN_RIGHT || (touch_x >= 0 && touch_x >= SCREEN_W / 2)) cfg.page = (cfg.page + 1) % DASH_PAGE_COUNT;
             if (b & BTN_LEFT || (touch_x >= 0 && touch_x < SCREEN_W / 2)) cfg.page = (cfg.page + DASH_PAGE_COUNT - 1) % DASH_PAGE_COUNT;
             if (b & BTN_Y && edit_host()) {
                 net_set_target(cfg.host, cfg.port);
                 config_save(&cfg);
             }
+        } else if (view == VIEW_STREAM) {
+            if (b & BTN_B) {
+                stream_stop();
+                view = VIEW_MENU;
+            }
+            if (b & BTN_Y) show_stream_info = !show_stream_info;
         } else {
             if (b & BTN_UP) menu_sel = (menu_sel + MENU_COUNT - 1) % MENU_COUNT;
             if (b & BTN_DOWN) menu_sel = (menu_sel + 1) % MENU_COUNT;
             if (b & BTN_A) {
-                message = NULL;
                 switch (menu_sel) {
                 case MENU_CUSTOM:
-                    in_dash = true;
+                    view = VIEW_CUSTOM;
                     break;
-                case MENU_MOONLIGHT:
-                    message = launch_moonlight();
-                    if (!message) running = false;
+                case MENU_STREAM:
+                    stream_start(cfg.host, cfg.stream_port);
+                    view = VIEW_STREAM;
                     break;
                 case MENU_SET_PC:
                     if (edit_host()) {
@@ -276,10 +312,12 @@ int main(int argc, char **argv) {
         render_begin_frame();
         SDL_SetRenderDrawColor(ren, 8, 9, 12, 255);
         SDL_RenderClear(ren);
-        if (in_dash)
+        if (view == VIEW_CUSTOM)
             dash_draw(cfg.page, vals, &ctx);
+        else if (view == VIEW_STREAM)
+            draw_stream(ren, &ctx, show_stream_info);
         else
-            menu_draw(menu_sel, cfg.host, cfg.port, message);
+            menu_draw(menu_sel, cfg.host, cfg.port);
 
         if (shot && ++frames == 90) {
             SDL_Surface *s = SDL_CreateRGBSurfaceWithFormat(0, SCREEN_W, SCREEN_H, 32, SDL_PIXELFORMAT_ARGB8888);
@@ -292,7 +330,10 @@ int main(int argc, char **argv) {
     }
 
     config_save(&cfg);
+    stream_stop();
     net_stop();
+    if (stream_tex) SDL_DestroyTexture(stream_tex);
+    free(stream_pixels);
     render_shutdown();
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);

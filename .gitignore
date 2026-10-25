@@ -5,3 +5,6 @@ build/
 *.map
 simdash-desktop
 config.ini
+streamer/bin/
+streamer/obj/
+out/
