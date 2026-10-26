@@ -53,6 +53,8 @@ slot_rib   = 6;     // rib width between slots
 flush_tilt    = 0;   // lean back in degrees (0 = straight up; the R3 already sits tilted)
 cable_clear   = 12;  // room under the Switch for a right-angle USB-C plug; 0 if you never charge in it
 flush_plate_w = 30;  // plate depth front to back
+brace_len     = 30;  // how far the riser braces reach back on the R3 (raised version only)
+flush_raise   = 60;  // extra height under the Switch so the screen clears the wheel rim (0 = sits low)
 
 /* [Hinge] */
 hinge_x     = 27;   // hinge centre distance from the middle (each side)
@@ -163,7 +165,7 @@ module assembly() {
 // ---------- flush one-piece version (modelled as printed, plate on the bed) ----------
 flush_a = 90 - flush_tilt;
 // height of the Switch's bottom edge above the plate
-flush_lift = max(wall * sin(flush_a) + 1, cable_clear);
+flush_lift = max(wall * sin(flush_a) + 1, cable_clear) + flush_raise;
 flush_y = -wall_h * sin(flush_a) / 2 + 3;  // plate centre, slightly behind the cradle's middle
 
 module flush_cradle() {
@@ -185,11 +187,25 @@ module flush() {
                 flush_ledge();
                 linear_extrude(plate_t) projection() flush_ledge();
             }
+            // braces behind a tall riser so it doesn't rock under force feedback
+            if (flush_raise > 15) for (s = [-1, 1])
+                translate([s * (usb_gap / 2 + 4) - 4, 0, 0]) rotate([90, 0, 90]) linear_extrude(8)
+                    polygon([[-1, 0], [brace_len, 0], [brace_len, plate_t], [-1, plate_t + flush_lift]]);
         }
         // R3 screw holes, counterbored from the top
         for (s = [-1, 1]) translate([s * r3_hole_spacing / 2, flush_y, 0]) {
             translate([0, 0, -1]) cylinder(d = r3_screw_d, h = plate_t + 2);
             translate([0, 0, plate_t - r3_head_h]) cylinder(d = r3_head_d, h = 200);
+        }
+        // lighten a tall riser with pointed windows front to back (no bridges)
+        if (flush_raise > 15) {
+            rib = 8;
+            ww = (cw - 2 * rib - usb_gap - 2 * rib) / 4;  // two windows each side of the cable channel
+            wh = flush_lift - 6;
+            for (s = [-1, 1], i = [0, 1])
+                translate([s * (usb_gap / 2 + rib + i * (ww + rib)) - (s < 0 ? ww : 0), 60, plate_t])
+                    rotate([90, 0, 0]) linear_extrude(120)
+                        polygon([[0, 0], [ww, 0], [ww, max(0, wh - ww / 2)], [ww / 2, wh], [0, max(0, wh - ww / 2)]]);
         }
         // USB-C cable channel under the Switch, open front to back
         if (cable_clear > 0)

@@ -6,8 +6,9 @@ mounts go. There are two versions.
 
 ## Flush (recommended)
 
-One piece. The Switch stands straight up off the base (the R3 is already tilted), and you
-read it through the top half of the wheel like a real dash.
+One piece. The Switch stands straight up off the base (the R3 is already tilted) on a
+60 mm riser with two braces at the back, so the whole screen sits above the wheel rim. Set `flush_raise` to 0 for
+the low version you read through the wheel.
 
 ![Flush](images/flush_assembly.png)
 ![Flush back](images/flush.png)
@@ -47,6 +48,7 @@ These numbers are from research, not from a real R3. Measure with calipers and
 change them at the top of `switch_moza_r3_mount.scad`:
 
 - `r3_hole_spacing` (90 mm): centre-to-centre of the two M3 holes on top of the R3.
+- `flush_raise` (60 mm): riser height. Raise it if the rim still cuts off the bottom of the screen, lower it if the Switch sits too high.
 - `flush_tilt` (0 degrees): lean the flush version back if you want it angled more.
 - `hinge_h` (30 mm): how high the hinge sits above the base. Raise it if the Switch is hidden behind the wheel.
 - `sw_w`, `sw_h`, `sw_t` (173 x 101.9 x 13.9 mm): Switch V1 size. `fit` adds clearance.
