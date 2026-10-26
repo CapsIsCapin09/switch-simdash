@@ -51,10 +51,11 @@ slot_rib   = 6;     // rib width between slots
 
 /* [Flush version] */
 flush_tilt    = 0;   // lean back in degrees (0 = straight up; the R3 already sits tilted)
-cable_clear   = 12;  // room under the Switch for a right-angle USB-C plug; 0 if you never charge in it
+cable_clear   = 8;   // room under the Switch for a flat side-angle USB-C plug; 0 if you never charge in it
 flush_plate_w = 30;  // plate depth front to back
 brace_len     = 30;  // how far the riser braces reach back on the R3 (raised version only)
-flush_raise   = 60;  // extra height under the Switch so the screen clears the wheel rim (0 = sits low)
+flush_raise   = 0;   // extra height under the Switch so the screen clears the wheel rim (60 clears William's rim)
+flush_back    = 40;  // move the Switch this far back from the screw holes (the plate reaches back to it)
 
 /* [Hinge] */
 hinge_x     = 27;   // hinge centre distance from the middle (each side)
@@ -177,26 +178,43 @@ module flush_ledge() {
         translate([-cw / 2, -wall, 0]) cube([cw, wall, wall_h]);
 }
 
+plate_y0 = min(flush_y - flush_plate_w / 2, flush_back - wall_h - 3);
+plate_y1 = max(flush_y + flush_plate_w / 2, flush_back + (flush_raise > 15 ? brace_len : 8));
+
+// the Switch-holding part: cradle, plinth and riser, before moving it back
+module flush_body() {
+    flush_cradle();
+    // solid plinth from the plate up to the bottom ledge
+    hull() {
+        flush_ledge();
+        linear_extrude(plate_t) projection() flush_ledge();
+    }
+    // braces behind a tall riser so it doesn't rock under force feedback
+    if (flush_raise > 15) for (s = [-1, 1])
+        translate([s * (usb_gap / 2 + 4) - 4, 0, 0]) rotate([90, 0, 90]) linear_extrude(8)
+            polygon([[-1, 0], [brace_len, 0], [brace_len, plate_t], [-1, plate_t + flush_lift]]);
+}
+
 module flush() {
     difference() {
         union() {
-            translate([-plate_l / 2, flush_y - flush_plate_w / 2, 0]) cube([plate_l, flush_plate_w, plate_t]);
-            flush_cradle();
-            // solid plinth from the plate up to the bottom ledge
-            hull() {
-                flush_ledge();
-                linear_extrude(plate_t) projection() flush_ledge();
-            }
-            // braces behind a tall riser so it doesn't rock under force feedback
-            if (flush_raise > 15) for (s = [-1, 1])
-                translate([s * (usb_gap / 2 + 4) - 4, 0, 0]) rotate([90, 0, 90]) linear_extrude(8)
-                    polygon([[-1, 0], [brace_len, 0], [brace_len, plate_t], [-1, plate_t + flush_lift]]);
+            translate([-plate_l / 2, plate_y0, 0]) cube([plate_l, plate_y1 - plate_y0, plate_t]);
+            translate([0, flush_back, 0]) flush_body();
+            // ribs stiffening the plate between the screws and the set-back Switch
+            if (flush_back > 15) for (s = [-1, 1])
+                translate([s * (usb_gap / 2 + 4) - 4, flush_y - 8, 0])
+                    cube([8, flush_back - wall_h - flush_y + 8 + eps, plate_t + flush_lift]);
         }
         // R3 screw holes, counterbored from the top
         for (s = [-1, 1]) translate([s * r3_hole_spacing / 2, flush_y, 0]) {
             translate([0, 0, -1]) cylinder(d = r3_screw_d, h = plate_t + 2);
             translate([0, 0, plate_t - r3_head_h]) cylinder(d = r3_head_d, h = 200);
         }
+        translate([0, flush_back, 0]) flush_cuts();
+    }
+}
+
+module flush_cuts() {
         // lighten a tall riser with pointed windows front to back (no bridges)
         if (flush_raise > 15) {
             rib = 8;
@@ -210,12 +228,11 @@ module flush() {
         // USB-C cable channel under the Switch, open front to back
         if (cable_clear > 0)
             translate([-usb_gap / 2, -60, plate_t]) cube([usb_gap, 120, flush_lift + back_t * cos(flush_a) + eps]);
-    }
 }
 
 module flush_assembly() {
     color("dimgray") flush();
-    translate([0, 0, plate_t + flush_lift]) rotate([flush_a, 0, 0])
+    translate([0, flush_back, plate_t + flush_lift]) rotate([flush_a, 0, 0])
         color("black") translate([-sw_w / 2 + 0.3, 0.3, back_t]) cube([sw_w, sw_h, sw_t]);
 }
 

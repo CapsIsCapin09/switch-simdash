@@ -6,9 +6,9 @@ mounts go. There are two versions.
 
 ## Flush (recommended)
 
-One piece. The Switch stands straight up off the base (the R3 is already tilted) on a
-60 mm riser with two braces at the back, so the whole screen sits above the wheel rim. Set `flush_raise` to 0 for
-the low version you read through the wheel.
+One piece. The Switch stands straight up off the base (the R3 is already tilted),
+as low as it can sit while still taking a USB-C cable, and set 40 mm back from the
+screw holes. The plate and two ribs reach back to it.
 
 ![Flush](images/flush_assembly.png)
 ![Flush back](images/flush.png)
@@ -39,7 +39,7 @@ PETG or PLA, 4 walls, 20-30% infill. The cradle is about 179 x 127 mm, so it fit
 ## Fit
 
 - The Switch slides in from the top. The top edge stays open, so the vents, power and volume buttons, game card slot and headphone jack are all clear.
-- The bottom ledge has a 34 mm gap for a USB-C cable to charge while racing. On the flush version, the Switch sits 12 mm up (`cable_clear`) so a right-angle USB-C plug fits underneath; set it to 0 to sit lower if you don't charge in it.
+- The bottom ledge has a 34 mm gap for a USB-C cable to charge while racing. On the flush version, the Switch sits 8 mm up (`cable_clear`), enough for a flat USB-C plug that bends sideways; set it to 0 to sit lower if you don't charge in it.
 - The back has a large window over the rear air intake.
 
 ## Check before printing
@@ -48,7 +48,8 @@ These numbers are from research, not from a real R3. Measure with calipers and
 change them at the top of `switch_moza_r3_mount.scad`:
 
 - `r3_hole_spacing` (90 mm): centre-to-centre of the two M3 holes on top of the R3.
-- `flush_raise` (60 mm): riser height. Raise it if the rim still cuts off the bottom of the screen, lower it if the Switch sits too high.
+- `flush_back` (40 mm): how far behind the screw holes the Switch sits.
+- `flush_raise` (0 mm): riser height. 60 mm lifts the whole screen above a Moza R3 rim from a normal seat.
 - `flush_tilt` (0 degrees): lean the flush version back if you want it angled more.
 - `hinge_h` (30 mm): how high the hinge sits above the base. Raise it if the Switch is hidden behind the wheel.
 - `sw_w`, `sw_h`, `sw_t` (173 x 101.9 x 13.9 mm): Switch V1 size. `fit` adds clearance.
